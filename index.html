@@ -123,7 +123,7 @@
                 "Commission Expense", "Bad Debts Expense", "Loss on Disposal of Asset", "Carriage Inwards", "Carriage Outwards",
                 "Drawings"  // Drawings now under Expenses
             ],
-            capital: ["Capital Contribution", "Owner's Equity", "Retained Earnings", "Dividends Declared"],  // Capital category without Drawings
+            capital: ["Capital Contribution", "Owner's Equity", "Retained Earnings", "Dividends Declared"],
             returns: ["Sales Returns", "Purchase Returns", "Sales Discounts", "Purchase Discounts"]
         };
 
@@ -174,13 +174,17 @@
             let creditEntries = [];
 
             if (paymentType === "mixed") {
-                // For mixed payment type, we will add 3 rows:
-                // 1. Debit Cash (cashAmount)
-                debitEntries.push({ account: "Cash", amount: cashAmount });
-                // 2. Debit Accounts Receivable (creditAmount)
-                debitEntries.push({ account: "Accounts Receivable", amount: creditAmount });
-                // 3. Credit Sales Revenue (total amount)
-                creditEntries.push({ account: "Sales Revenue", amount });
+                if (["income"].includes(category)) {
+                    // Income transaction: Debit Cash and Accounts Receivable, Credit Income
+                    debitEntries.push({ account: "Cash", amount: cashAmount });
+                    debitEntries.push({ account: "Accounts Receivable", amount: creditAmount });
+                    creditEntries.push({ account: type, amount });
+                } else if (["expenses", "assets"].includes(category)) {
+                    // Expenses/Assets: Debit Expense/Asset, Credit Cash and Accounts Payable
+                    debitEntries.push({ account: type, amount });
+                    creditEntries.push({ account: "Cash", amount: cashAmount });
+                    creditEntries.push({ account: "Accounts Payable", amount: creditAmount });
+                }
             } else {
                 // Regular debit and credit handling
                 if (category === "expenses" && type === "Drawings") {
@@ -188,12 +192,7 @@
                     creditEntries.push({ account: "Cash", amount });
                 } else if (["assets", "expenses"].includes(category)) {
                     debitEntries.push({ account: type, amount });
-                    if (paymentType === "mixed") {
-                        creditEntries.push({ account: "Cash", amount: cashAmount });
-                        creditEntries.push({ account: "Accounts Payable", amount: creditAmount });
-                    } else {
-                        creditEntries.push({ account: paymentType === "cash" ? "Cash" : "Accounts Payable", amount });
-                    }
+                    creditEntries.push({ account: paymentType === "cash" ? "Cash" : "Accounts Payable", amount });
                 } else if (["liabilities", "income"].includes(category)) {
                     creditEntries.push({ account: type, amount });
                     debitEntries.push({ account: paymentType === "cash" ? "Cash" : "Accounts Receivable", amount });
