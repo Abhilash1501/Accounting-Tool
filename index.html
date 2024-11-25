@@ -89,6 +89,7 @@
                 <th>Description</th>
                 <th>Debit</th>
                 <th>Credit</th>
+                <th>Action</th>
             </tr>
         </thead>
         <tbody></tbody>
@@ -121,14 +122,14 @@
                 "Rent Expense", "Salaries Expense", "Utilities Expense", "Depreciation Expense",
                 "Bank Charges", "Advertising Expense", "Travel Expense", "Purchases",
                 "Commission Expense", "Bad Debts Expense", "Loss on Disposal of Asset", "Carriage Inwards", "Carriage Outwards",
-                "Drawings"  // Drawings now under Expenses
+                "Drawings"
             ],
             capital: ["Capital Contribution", "Owner's Equity", "Retained Earnings", "Dividends Declared"],
             returns: ["Sales Returns", "Purchase Returns", "Sales Discounts", "Purchase Discounts"]
         };
 
-        const journal = [];
-        const trialBalance = {};
+        let journal = [];
+        let trialBalance = {};
 
         document.getElementById("paymentType").addEventListener("change", function () {
             const paymentType = this.value;
@@ -175,18 +176,15 @@
 
             if (paymentType === "mixed") {
                 if (["income"].includes(category)) {
-                    // Income transaction: Debit Cash and Accounts Receivable, Credit Income
                     debitEntries.push({ account: "Cash", amount: cashAmount });
                     debitEntries.push({ account: "Accounts Receivable", amount: creditAmount });
                     creditEntries.push({ account: type, amount });
                 } else if (["expenses", "assets"].includes(category)) {
-                    // Expenses/Assets: Debit Expense/Asset, Credit Cash and Accounts Payable
                     debitEntries.push({ account: type, amount });
                     creditEntries.push({ account: "Cash", amount: cashAmount });
                     creditEntries.push({ account: "Accounts Payable", amount: creditAmount });
                 }
             } else {
-                // Regular debit and credit handling
                 if (category === "expenses" && type === "Drawings") {
                     debitEntries.push({ account: "Owner's Equity", amount });
                     creditEntries.push({ account: "Cash", amount });
@@ -206,11 +204,12 @@
             }
 
             // Add to journal
+            const transactionNumber = journal.length + 1;
             debitEntries.forEach(entry => {
-                journal.push({ date, description: `${description} (${entry.account})`, debit: entry.amount, credit: "" });
+                journal.push({ date, description: `${description} (${entry.account} Dr.)`, debit: entry.amount, credit: "", transactionNumber });
             });
             creditEntries.forEach(entry => {
-                journal.push({ date, description: `${description} (${entry.account})`, debit: "", credit: entry.amount });
+                journal.push({ date, description: `${description} (To ${entry.account} Cr.)`, debit: "", credit: entry.amount, transactionNumber });
             });
             updateJournal();
 
@@ -236,8 +235,43 @@
                     <td>${entry.description}</td>
                     <td>${entry.debit || ""}</td>
                     <td>${entry.credit || ""}</td>
+                    <td><button class="delete-btn" data-transaction-number="${entry.transactionNumber}">Delete</button></td>
                 </tr>
             `).join("");
+            addDeleteEventListeners();
+        }
+
+        function addDeleteEventListeners() {
+            const deleteButtons = document.querySelectorAll('.delete-btn');
+            deleteButtons.forEach(button => {
+                button.addEventListener('click', function() {
+                    const transactionNumber = this.getAttribute('data-transaction-number');
+                    deleteTransaction(transactionNumber);
+                });
+            });
+        }
+
+        function deleteTransaction(transactionNumber) {
+            // Remove the transaction from the journal
+            journal = journal.filter(entry => entry.transactionNumber !== parseInt(transactionNumber));
+
+            // Recalculate trial balance and accounting equation after deletion
+            trialBalance = {};
+            journal.forEach(entry => {
+                if (entry.debit) {
+                    trialBalance[entry.description] = trialBalance[entry.description] || { debit: 0, credit: 0 };
+                    trialBalance[entry.description].debit += entry.debit;
+                }
+                if (entry.credit) {
+                    trialBalance[entry.description] = trialBalance[entry.description] || { debit: 0, credit: 0 };
+                    trialBalance[entry.description].credit += entry.credit;
+                }
+            });
+
+            // Update the journal, trial balance, and accounting equation
+            updateJournal();
+            updateTrialBalance();
+            calculateAccountingEquation();
         }
 
         function updateTrialBalance() {
